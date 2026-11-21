@@ -1,0 +1,6 @@
+# 功能：排除依赖、构建产物和浏览器测试缓存。时间：2026-11-20 | 作者：lq。
+node_modules/
+dist/
+.playwright-cli/
+output/
+.DS_Store

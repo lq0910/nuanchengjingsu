@@ -1,0 +1,331 @@
+/**
+ * 功能：呈现全屏 3D 双桥赛车、精准计时 HUD、赛前车辆与移动端触控。
+ * 时间：2026-11-20 | 作者：lq
+ */
+/* 功能：以石墨灰、钛银和赛车红建立菜单与仪表共用色板。时间：2026-11-20 | 作者：lq。 */
+:root {
+  font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--paper);
+  background: var(--graphite);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --graphite: #101116;
+  --surface: #202127;
+  --paper: #f4f5f8;
+  --titanium: #c4cad3;
+  --muted: #b6bbc6;
+  --accent: #f66a77;
+  --accent-fill: #bc2440;
+  --accent-hover: #ca2d48;
+  --selected: #492731;
+  --focus: #f3f5fa;
+  --mono: 'SFMono-Regular', Consolas, monospace;
+  --condensed: Impact, 'Arial Narrow', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body, #stage { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+button, a { color: inherit; font: inherit; }
+button { cursor: pointer; }
+.stage { position: relative; isolation: isolate; min-height: 360px; background: var(--graphite); }
+#world { position: absolute; z-index: -4; inset: 0; width: 100%; height: 100%; display: block; }
+.canvas-shade {
+  position: absolute; z-index: -3; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg,#101116dc,#101116b5 26%,#10111627 55%,transparent 77%),
+    linear-gradient(180deg,#10111688,transparent 22%,transparent 63%,#1011169e);
+}
+.grain { position: absolute; z-index: 8; inset: 0; pointer-events: none; opacity: .14; mix-blend-mode: soft-light; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.88' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.28'/%3E%3C/svg%3E"); }
+.topbar { position: absolute; z-index: 12; inset: 0 0 auto; height: 76px; display: flex; align-items: center; padding: 0 5.1%; border-bottom: 1px solid rgba(236,242,236,.16); background: linear-gradient(180deg,rgba(16,17,22,.27),transparent); }
+.brand { display: flex; align-items: center; gap: 13px; text-decoration: none; min-width: 239px; }
+.brand-mark { display: flex; align-items: flex-end; gap: 3px; width: 23px; height: 26px; }
+.brand-mark span { display: block; width: 5px; border-radius: 1px 1px 0 0; background: var(--accent); transform: skew(-20deg); }
+.brand-mark span:nth-child(1) { height: 15px; }.brand-mark span:nth-child(2) { height: 22px; }.brand-mark span:nth-child(3) { height: 26px; }
+.brand-wordmark { position: relative; font-weight: 800; font-size: 15px; line-height: 15px; letter-spacing: 1px; }
+.brand-wordmark small { display: block; margin-top: 4px; font: 8px var(--mono); letter-spacing: 2.1px; color: rgba(238,242,237,.6); }
+.race-status { height: 32px; display: flex; align-items: center; gap: 11px; font: 10px var(--mono); letter-spacing: .7px; color: rgba(243,243,237,.82); }
+.live-dot,.race-light { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: var(--accent); box-shadow: 0 0 11px rgba(246,106,119,.65); animation: blink 2s ease infinite; }
+.race-status > i,.preflight-bottom > i,.start-hint > i { width: 1px; height: 15px; background: rgba(237,241,234,.28); }
+#best-chip { color: var(--muted); font: 10px var(--mono); }#best-chip b { font-weight: 400; color: var(--paper); }
+.header-actions { margin-left: auto; display: flex; align-items: center; gap: 24px; }
+.utility-button,.sound-button { border: 0; background: transparent; color: #f2f0e8; font: 10px var(--mono); letter-spacing: .7px; }
+.utility-button { display: flex; align-items: center; gap: 9px; }.sun-symbol { font-size: 17px; }
+.sound-button { border-left: 1px solid rgba(240,241,234,.30); padding: 8px 0 8px 21px; color: rgba(245,245,239,.75); }
+.preflight { position: absolute; z-index: 5; left: 9.05%; top: 50%; width: min(450px, 38vw); transform: translateY(-42%); transition: opacity .55s, transform .7s; }
+.preflight.hidden { opacity: 0; pointer-events: none; transform: translate(-28px,-42%); }
+.eyebrow { display: flex; align-items: center; gap: 12px; color: rgba(246,244,236,.76); font: 10px var(--mono); letter-spacing: 1.35px; }
+.eyebrow-line { display: block; width: 42px; height: 1px; background: var(--accent); }
+h1 { margin: 24px 0 16px; font-size: 58px; line-height: 1.19; font-weight: 600; letter-spacing: 0; }
+h1 span { color: var(--titanium); }
+.intro { max-width: 330px; color: rgba(244,244,237,.69); font-size: 13px; line-height: 1.9; }
+.track-picker { margin-top: 27px; border-top: 1px solid rgba(240,240,231,.28); }
+/* 功能：桥号贴在中文名称后，并给窄屏留出足够的英文名称空间。时间：2026-11-20 | 作者：lq。 */
+.track-option { position: relative; display: grid; grid-template-columns: 34px minmax(max-content, 1fr) 74px 18px; align-items: center; width: 100%; height: 49px; padding: 0 8px 0 2px; border: 0; border-bottom: 1px solid rgba(240,240,231,.2); text-align: left; background: transparent; transition: color .2s,background .2s,padding .2s; }
+.track-option:hover:not(.selected) { background: #f4f5f80e; }
+.track-option.selected {
+  color: var(--paper); background: linear-gradient(90deg,#ed53642c,transparent 90%);
+  box-shadow: inset 2px 0 var(--accent); padding-left: 9px;
+}
+.track-option.selected .track-index { color: var(--accent); }
+.track-index,.track-option-en { font: 10px var(--mono); color: var(--muted); }.track-option-name { font-size: 13px; font-weight: 600; }.track-option-en { font-size: 9px; }.track-arrow { color: var(--accent); opacity: 0; transition: opacity .2s; }.track-option.selected .track-arrow { opacity: 1; }
+.track-option-name { white-space: nowrap; }
+.track-bridge-number { margin-inline-start: 4px; color: var(--titanium); font-size: 10px; font-weight: 500; }
+.launch-row { display: flex; align-items: center; gap: 15px; margin-top: 20px; }
+.launch-button { height: 51px; min-width: 221px; display: flex; align-items: center; gap: 12px; padding: 0 18px; border: 1px solid #f2798899; background: var(--accent-fill); color: white; text-align: left; transition: background .2s,transform .2s,border-color .2s; }
+.launch-button:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent); transform: translateY(-2px); }
+.launch-button:active:not(:disabled) { transform: translateY(0); }
+.launch-icon { font-size: 17px; }.launch-button > span:nth-child(2) { font-size: 13px; font-weight: 700; white-space: nowrap; }.launch-en { margin-left: auto; font: 9px var(--mono); color: #fff; white-space: nowrap; }
+.start-note { color: rgba(239,242,235,.60); font-size: 10px; }.start-note kbd { color: var(--paper); font: 9px var(--mono); padding: 4px 5px; border: 1px solid rgba(240,241,233,.4); margin-right: 5px; }
+.preflight-bottom { display: flex; align-items: center; gap: 15px; margin-top: 32px; }.preflight-bottom span { display: flex; flex-direction: column; gap: 5px; }.preflight-bottom b { font: 10px var(--mono); letter-spacing: .4px; }.preflight-bottom span span { font-size: 9px; color: var(--muted); white-space: nowrap; }
+.bridge-label { position: absolute; right: 5.3%; top: 35%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 155px; transition: opacity .4s; }.bridge-rule { width: 20px; height: 1px; background: var(--accent); }.bridge-label > span:nth-child(2) { font-size: 11px; font-weight: 700; white-space: nowrap; }.bridge-coordinate,.bridge-english { width: 100%; margin-left: 30px; color: rgba(244,243,232,.73); font: 9px var(--mono); letter-spacing: .6px; }.bridge-english { margin-top: -6px; color: rgba(244,243,232,.47); }
+.city-sign { position: absolute; top: 45%; right: 5.3%; text-align: right; font: 8px/1.7 var(--mono); letter-spacing: 1.1px; color: rgba(238,240,231,.55); }
+.scene-caption { position: absolute; z-index: 3; left: 4.8%; bottom: 92px; font: 11px var(--mono); letter-spacing: 1px; color: rgba(242,244,237,.87); transition: opacity .55s; }.scene-caption > span:first-child { color: var(--accent); }.scene-caption > span:last-child { color: rgba(244,244,235,.49); }
+.footer { position: absolute; z-index: 10; inset: auto 0 0; min-height: 47px; padding: 0 5.1%; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(237,241,234,.17); background: linear-gradient(0deg,rgba(16,17,22,.31),transparent); color: rgba(237,240,232,.56); font: 9px var(--mono); letter-spacing: .65px; }
+.footer > span:first-child { display: flex; gap: 23px; }.footer i { font-style: normal; }.device-hint { position: absolute; right: 5.1%; bottom: 58px; color: rgba(239,241,233,.56); font: 8px var(--mono); letter-spacing: .9px; }
+
+/* 功能：比赛计时器、分段仪表和路径地图覆盖层。时间：2026-11-20 | 作者：lq。 */
+.race-hud { position: absolute; z-index: 6; inset: 95px 5.2% 69px; display: flex; flex-direction: column; justify-content: space-between; opacity: 0; pointer-events: none; transition: opacity .45s; }.race-hud.visible { opacity: 1; }
+.race-top { display: flex; align-items: center; justify-content: space-between; }.race-identity { display: flex; align-items: center; gap: 10px; color: #fcf7ef; font: 9px var(--mono); letter-spacing: .75px; text-shadow: 0 1px 8px var(--graphite); }.race-divider { color: rgba(248,246,236,.47); }.icon-button { width: 36px; height: 36px; pointer-events: auto; border: 1px solid rgba(245,245,239,.52); background: #1011168c; color: white; font-size: 15px; }
+.race-progress { display: flex; align-items: center; gap: 15px; align-self: center; width: min(550px,64%); color: rgba(247,246,237,.75); font: 9px var(--mono); }.progress-track { position: relative; height: 3px; flex: 1; background: rgba(255,255,255,.46); }.progress-track > span { position: absolute; top: 0; left: 0; height: 100%; background: var(--accent); transition: width .18s; }.finish-mark { position: absolute; top: -3px; right: 0; width: 3px; height: 9px; background: white; }
+.race-bottom { display: flex; align-items: flex-end; justify-content: space-between; padding: 17px 21px; background: linear-gradient(90deg,#101116ed,#16171edf 57%,#16171ea6); border-top: 1px solid rgba(244,243,235,.36); border-bottom: 1px solid rgba(244,243,235,.26); text-shadow: 0 1px 10px rgba(5,11,12,.5); }.speed-readout { position: relative; display: flex; align-items: flex-end; gap: 7px; min-width: 210px; }.speed-readout > span:first-child { font: 62px/.78 var(--condensed); font-weight: 700; font-variant-numeric: tabular-nums; }.speed-unit { padding-bottom: 2px; color: rgba(248,247,237,.68); font: 9px var(--mono); }.boost-readout { display: flex; align-items: center; gap: 8px; margin-left: 8px; padding-bottom: 3px; font: 9px var(--mono); color: rgba(244,243,234,.77); }.boost-bar { width: 51px; height: 3px; background: rgba(255,255,255,.36); }.boost-bar i { display: block; width: 100%; height: 100%; background: var(--titanium); transition: width .14s; }.boost-active .boost-bar i { background: #ffdd82; box-shadow: 0 0 8px #ffc964; }.boost-active { color: #ffe3a1; }
+.race-clock-wrap,.position-readout { display: flex; align-items: baseline; gap: 9px; }.clock-caption,.position-caption { color: rgba(246,244,235,.65); font: 9px var(--mono); letter-spacing: .9px; }.race-clock-wrap > span:last-child { font: 31px/.94 var(--mono); font-variant-numeric: tabular-nums; }.position-readout > span:nth-child(2) { font: 43px/.85 var(--condensed); font-weight: 700; }.position-total { font: 11px var(--mono); color: rgba(248,246,238,.71); }.rank-up { animation: rank-pop .38s ease; }
+.mini-map { position: absolute; z-index: 6; right: 5.2%; bottom: 131px; width: 137px; height: 116px; opacity: .72; transition: opacity .4s; pointer-events: none; }.map-title { position: absolute; top: -12px; left: 2px; font: 8px var(--mono); letter-spacing: .9px; color: rgba(245,244,235,.69); }.mini-map svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }.map-track { fill: none; stroke: rgba(237,244,238,.25); stroke-width: 7.5; }.map-road { fill: none; stroke: #101116e0; stroke-width: 4.4; }.map-center { fill: none; stroke: rgba(231,240,235,.57); stroke-width: .65; stroke-dasharray: 2.1 2.2; }.map-marker,.mini-start,#mini-car { position: absolute; display: block; border-radius: 50%; transform: translate(-50%,-50%); }.bridge-pin { width: 6px; height: 6px; background: var(--accent); border: 1px solid white; }.mini-start { left: 13%; top: 52%; width: 5px; height: 5px; background: #f2f4e8; }.mini-car { left: 13%; top: 52%; width: 8px; height: 8px; background: var(--accent); border: 1px solid white; box-shadow: 0 0 9px var(--accent); transition: left .08s linear,top .08s linear; }
+.start-hint { position: absolute; z-index: 7; left: 50%; bottom: 110px; display: flex; align-items: center; gap: 14px; transform: translateX(-50%) translateY(8px); color: rgba(245,244,235,.82); font-size: 10px; opacity: 0; transition: opacity .35s,transform .35s; }.start-hint.visible { opacity: 1; transform: translateX(-50%) translateY(0); }.start-hint > i { height: 12px; }.countdown { position: absolute; z-index: 14; top: 50%; left: 50%; color: white; font: 900 112px/1 var(--condensed); text-shadow: 0 4px 28px #101116a6; pointer-events: none; }.countdown.hidden { display: none; }
+.modal { position: absolute; z-index: 15; inset: 0; display: flex; align-items: center; justify-content: center; background: #101116a6; backdrop-filter: blur(9px); }.modal.hidden { display: none; }.result-panel { width: min(380px,calc(100% - 40px)); padding: 34px 36px; border: 1px solid rgba(238,241,232,.30); background: linear-gradient(146deg,var(--surface),var(--graphite)); box-shadow: 0 20px 60px rgba(0,0,0,.32); display: flex; align-items: center; flex-direction: column; }.result-overline { font: 9px var(--mono); color: rgba(246,243,234,.65); letter-spacing: 1.35px; }.record-label { margin-top: 18px; color: #f6bd71; font: 10px var(--mono); opacity: 0; }.record-visible { opacity: 1; }.result-place { margin-top: 9px; font: 44px/1 var(--condensed); color: var(--titanium); }.result-time { margin-top: 12px; font: clamp(35px,10vw,50px)/1 var(--mono); white-space: nowrap; }.result-caption { margin-top: 9px; font: 8px var(--mono); letter-spacing: 1.3px; color: var(--muted); }.retry-button { width: 100%; margin-top: 27px; }.secondary-button { margin-top: 17px; padding: 5px 10px; background: transparent; border: 0; font-size: 11px; color: rgba(244,243,235,.63); }.pause-panel h2 { font-size: 32px; font-weight: 600; }
+.mobile-controls { display: none; }
+.stage.night-mode .canvas-shade { background: linear-gradient(90deg,#101116be,#10111635 46%,transparent 73%),linear-gradient(180deg,#10111673,transparent 27%,transparent 65%,#10111680); }
+@keyframes blink { 50% { opacity:.46;box-shadow:0 0 3px rgba(246,106,119,.35); } }@keyframes rank-pop { 45% { color:#ffd17b;transform:scale(1.25); } }
+
+@media (max-width: 760px) {
+  .topbar { height: 61px; padding: 0 18px; }.brand { min-width: 0; gap: 8px; }.brand-mark { transform: scale(.8); transform-origin: left center; width: 21px; }.brand-wordmark { font-size: 13px; }.brand-wordmark small { font-size: 7px; }.race-status { margin-left: auto; font-size: 8px; gap: 7px; }.race-status > i,#best-chip { display: none; }.header-actions { gap: 13px; margin-left: 13px; }.utility-button { gap: 5px; font-size: 9px; white-space: nowrap; }.sun-symbol { font-size: 16px; }.sound-button { padding-left: 12px; font-size: 8px; white-space: nowrap; }
+  .preflight { left: 8%; top: 45%; width: 84%; max-width: 430px; transform: translateY(-37%); }.preflight.hidden { transform: translate(-20px,-37%); }h1 { margin: 17px 0 10px; font-size: clamp(46px,10vw,58px); }.intro { max-width: 310px; font-size: 12px; margin-bottom: 0; }.eyebrow { font-size: 9px; }.track-picker { margin-top: 19px; }.track-option { height: 44px; grid-template-columns: 28px minmax(max-content,1fr) 61px 16px; }.track-option-name { font-size: 12px; }.track-option-en,.track-index { font-size: 8px; }.launch-row { margin-top: 15px; }.launch-button { height: 46px; }.preflight-bottom { margin-top: 22px; gap: 11px; }.preflight-bottom span span { font-size: 8px; }.preflight-bottom b { font-size: 9px; }
+  .bridge-label { top: auto; bottom: 16%; right: 18px; width: 130px; transform: scale(.87); transform-origin: right bottom; }.city-sign { top: 19%; right: 20px; font-size: 7px; }.scene-caption { left: 18px; bottom: 66px; font-size: 8px; }.footer { min-height: 39px; padding: 0 18px; font-size: 8px; }.footer > span:first-child { gap: 10px; }.footer > span:last-child { font-size: 7px; }.device-hint { right: 18px; bottom: 48px; font-size: 7px; }
+  .race-hud { inset: 75px 16px 63px; }.race-identity { font-size: 8px; gap: 7px; }.icon-button { width: 33px; height: 33px; }.race-progress { width: 80%; gap: 9px; }.race-bottom { padding: 13px 13px; gap: 9px; }.speed-readout { min-width: 110px; flex-wrap: wrap; gap: 4px; }.speed-readout > span:first-child { font-size: 53px; }.speed-unit { font-size: 8px; }.boost-readout { width: 100%; margin: 5px 0 0; gap: 6px; font-size: 8px; }.boost-bar { width: 34px; }.clock-caption,.position-caption { font-size: 7px; }.clock-caption { display: none; }.race-clock-wrap > span:last-child { font-size: clamp(15px,4.8vw,24px); }.race-clock-wrap { align-self: flex-start; padding-top: 9px; }.position-readout { gap: 5px; }.position-caption { display: none; }.position-readout > span:nth-child(2) { font-size: 36px; }.position-total { font-size: 9px; }.mini-map { right: 21px; bottom: 139px; width: 104px; height: 91px; }.start-hint { bottom: 114px; gap: 8px; width: max-content; font-size: 8px; }.start-hint > i { height: 9px; }.countdown { font-size: 88px; }
+  .mobile-controls { position: absolute; z-index: 11; inset: auto 0 47px; padding: 0 18px; display: flex; align-items: flex-end; justify-content: space-between; pointer-events: none; opacity: 0; transition: opacity .3s; }.race-hud.visible ~ .mobile-controls { opacity: 1; }.mobile-controls button { width: 54px; height: 54px; display: grid; place-items: center; pointer-events: auto; border: 1px solid rgba(245,246,235,.57); border-radius: 50%; color: white; background: #16171ed6; backdrop-filter: blur(7px); font: 21px var(--mono); touch-action: none; user-select: none; }.mobile-controls button[data-pressed="true"] { background: var(--accent-hover); border-color: white; }.steering-controls,.pedal-controls { display: flex; gap: 9px; }.pedal-controls { align-items: flex-end; }.mobile-controls button.nitro-button { width: 43px; height: 43px; margin-bottom: 1px; color: #ffce79; font-size: 11px; border-color: rgba(255,206,121,.64); }.mobile-controls button[data-control="brake"] { width: 42px; height: 42px; margin-bottom: 1px; font-size: 8px; }.mobile-controls button.gas-button { width: 67px; height: 67px; background: var(--accent-fill); font-weight: 700; font-size: 14px; }
+}
+@media (max-width: 400px) { .topbar { padding: 0 12px; }.race-status { font-size: 7px; }.header-actions { gap: 8px; margin-left: 8px; }.sound-button { padding-left: 8px; }.preflight-bottom { gap: 7px; }.preflight-bottom b { font-size: 8px; }.preflight-bottom span span { font-size: 7px; }.start-note { font-size: 8px; }.launch-button { min-width: 190px; }.launch-en { font-size: 8px; } }
+/* 功能：窄屏顶栏优先保留单行赛道编号和工具入口。时间：2026-11-20 | 作者：lq。 */
+@media (max-width: 760px) { #sector-tag { white-space: nowrap; } }
+@media (max-width: 420px) {
+  .race-status .live-dot { display: none; }
+  .brand-wordmark { letter-spacing: 0; }
+  .brand-wordmark small { letter-spacing: 1.35px; }
+}
+@media (max-height: 690px) and (min-width: 761px) { .preflight { transform:translateY(-38%) scale(.88); transform-origin:left center; }.preflight.hidden { transform:translate(-20px,-38%) scale(.88); }.bridge-label { top: 31%; }.city-sign { top: 43%; }.preflight-bottom { margin-top: 22px; }.mini-map { bottom: 100px; } }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important; } }
+
+/* 功能：赛前与驾驶视图的层级和窄屏间距。时间：2026-11-20 | 作者：lq。 */
+.preflight { top: 48%; width: min(385px,36vw); transform: translateY(-40%); }
+/* 功能：长标题可宽出按钮列，窄屏保持单行。时间：2026-11-20 | 作者：lq。 */
+#preflight h1 { width: max-content; font-size: 66px; font-weight: 800; letter-spacing: 0; white-space: nowrap; }
+.intro { color: var(--titanium); }.intro span { color: var(--accent); padding: 0 6px; }
+.bridge-label { top: auto; bottom: 78px; right: calc(5.3% + 106px); }
+.map-title { top: -12px; left: 0; white-space: nowrap; }
+.mini-map { right: 5.1%; bottom: 65px; width: 80px; height: 111px; }
+.bridge-pin { fill: var(--paper); stroke: var(--graphite); stroke-width: 1.15; }
+#mini-car { position: static; transform: none; fill: var(--accent); stroke: var(--paper); stroke-width: 1.3; filter: drop-shadow(0 0 4px var(--graphite)); }
+.sun-symbol,.launch-icon,.track-arrow,.icon-button { display: inline-grid; place-items: center; }
+.sun-symbol svg,.launch-icon svg,.track-arrow svg,.icon-button svg { width: 16px; height: 16px; }
+.countdown { transform: translate(-50%,-50%); }
+.position-total { white-space: nowrap; }
+.stage:not([data-mode="menu"]) .canvas-shade { background: linear-gradient(180deg,#10111691,transparent 26%,transparent 67%,#101116b8); }
+.stage:not([data-mode="menu"]) .bridge-label { display: none; }
+.stage:not([data-mode="menu"]) .mini-map { bottom: 160px; }
+/* 功能：右键拖动环视时提供抓取反馈，避免选中赛事文字。时间：2026-11-21 | 作者：lq。 */
+.stage[data-orbiting], .stage[data-orbiting] * { cursor: grabbing; user-select: none; }
+.race-hud { justify-content: initial; }
+.race-progress { margin-top: 14px; }
+.race-bottom { margin-top: auto; }
+.launch-button:disabled { cursor: wait; opacity: .65; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+@media (max-width: 760px) {
+  .preflight { top: auto; bottom: max(80px, 11%); left: 7%; width: 86%; max-width: 380px; transform: none; }
+  .preflight.hidden { transform: translateX(-20px); }
+  #preflight h1 { font-size: 48px; }
+  .canvas-shade { background: linear-gradient(180deg,#1011168c,transparent 22%,transparent 30%,#101116d6 56%,#101116f5); }
+  .stage.night-mode .canvas-shade { background: linear-gradient(180deg,#10111666,transparent 22%,transparent 33%,#101116c9 58%,#101116f5); }
+  .stage:not([data-mode="menu"]) .canvas-shade { background: linear-gradient(180deg,#1011168c,transparent 26%,transparent 59%,#101116b8); }
+  .bridge-label,.stage[data-mode="menu"] .mini-map { display: none; }
+  .race-hud { bottom: 120px; }
+  .stage:not([data-mode="menu"]) .mini-map { width: 55px; height: 80px; bottom: 216px; }
+  .race-clock-wrap > span:last-child { font-size: 17px; }
+  .result-time { font-size: 36px; }
+  .mobile-controls button { pointer-events: none; }
+  .race-hud.visible ~ .mobile-controls button { pointer-events: auto; }
+}
+@media (max-height: 670px) and (max-width: 760px) {
+  .preflight { bottom: 59px; }
+  #preflight h1 { font-size: 41px; }
+  .preflight-bottom { margin-top: 13px; }
+}
+@media (max-width: 360px) {
+  #preflight h1 { font-size: 40px; }
+  .brand-wordmark { white-space: nowrap; }
+}
+
+/* 功能：让天气与圈数、车辆数量共享发车设置行，窄屏保留触控高度。时间：2026-11-20 | 作者：lq。 */
+.race-setting { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.race-setting label { color: var(--paper); font-size: 11px; white-space: nowrap; }
+.race-setting select { min-width: 68px; min-height: 44px; padding: 0 6px; border: 1px solid #f5f1e478; border-radius: 0; background: #15161be0; color: var(--paper); color-scheme: dark; font: 13px var(--mono); cursor: pointer; }
+.race-setting select:hover { border-color: var(--accent); }
+.preflight-bottom > i { flex: 0 0 1px; }
+@media (max-width: 360px) {
+  .race-setting select { min-width: 57px; padding: 0 3px; }
+}
+#wet-indicator { color: #ccedff; white-space: nowrap; }
+#lap-indicator { min-width: 58px; color: var(--paper); white-space: nowrap; font-variant-numeric: tabular-nums; }
+#lap-distance { min-width: 54px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#race-name.is-airborne { color: #ffe3a1; }
+.hill-pin { fill: #ffd17b; stroke: var(--graphite); stroke-width: 1; }
+
+/* 功能：四个发车选项共用一行，并将事件指令固定在计圈进度下。时间：2026-11-21 | 作者：lq。 */
+.intro #course-length { margin-left: 3px; font: inherit; }
+.preflight-bottom { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)) minmax(90px,1.3fr); gap: clamp(5px,1vw,10px); }
+.preflight-bottom select { width: 100%; min-width: 0; }
+.stage:is([data-mode="menu"],[data-mode="garage"]) :is(.race-hud,.mobile-controls) { visibility: hidden; }
+.event-alert {
+  --event-tone: #ffd07f;
+  display: grid; grid-template-columns: 25px minmax(0,1fr) max-content; align-items: center;
+  gap: 10px; width: min(340px,100%); margin: 14px auto 0; padding: 9px 11px;
+  color: var(--paper); border: 1px solid #f7e7c842; border-left: 3px solid var(--event-tone);
+  background: #17171eed; font-variant-numeric: tabular-nums;
+  animation: event-enter .23s ease-out both;
+}
+.event-alert[hidden] { display: none; }
+.event-alert[data-phase="hold"] { --event-tone: #ff8996; }
+.event-alert[data-phase="clear"] { --event-tone: #b5e7b6; }
+.event-symbol { display: grid; place-items: center; width: 21px; height: 21px; border: 1px solid var(--event-tone); color: var(--event-tone); }
+.event-symbol::before { content: '!'; font: 750 14px var(--mono); }
+.event-alert[data-phase="clear"] .event-symbol::before { content: '✓'; }
+.event-copy { display: grid; gap: 3px; }
+.event-copy strong { font-size: 13px; }
+.event-copy span { color: #e3dedd; font-size: 11px; }
+.event-metric { font: 650 12px var(--mono); color: var(--event-tone); white-space: nowrap; }
+#mini-event { fill: #ffdc92; stroke: #252126; stroke-width: 1.2; }
+@keyframes event-enter { from { opacity: 0; translate: 0 -4px; } }
+@media (prefers-reduced-motion: reduce) { .event-alert { animation: none; } }
+@media (max-width: 360px) { .preflight-bottom select { font-size: 12px; } }
+
+/* 功能：完赛成绩直接悬于清晰场景上，不铺遮罩、不模糊赛道，中央留给巡航赛车。时间：2026-11-21 | 作者：lq。 */
+.finish-hud { position: absolute; z-index: 15; top: 24%; left: 5.2%; width: min(320px,36vw); pointer-events: none; text-shadow: 0 2px 8px #000,0 0 24px #101116; }
+.finish-hud.hidden { display: none; }
+.finish-content { display: flex; align-items: flex-start; flex-direction: column; animation: finish-enter .35s ease-out both; }
+.finish-status { margin-top: 12px; font-size: 13px; font-weight: 650; letter-spacing: 1px; }
+.finish-hud .record-label { margin-top: 22px; }
+.finish-hud .result-place { font-size: 64px; color: white; }
+.finish-hud .result-time { font-size: clamp(26px,3vw,40px); font-variant-numeric: tabular-nums; }
+.finish-hud .result-caption { color: #f4f3eb; font-size: 10px; letter-spacing: .6px; line-height: 1.6; }
+.finish-hud button { pointer-events: auto; text-shadow: none; }
+.finish-hud .retry-button { margin-top: 26px; min-width: 0; }
+.finish-hud .secondary-button { margin-top: 10px; padding: 10px 0; color: white; text-shadow: 0 2px 5px #000; }
+.stage[data-mode="finish"] :is(.race-progress,.mobile-controls,.boost-readout) { display: none; }
+@keyframes finish-enter { from { opacity: 0; transform: translateY(8px); } }
+/* 功能：手机成绩收紧到左上方，横屏矮窗口也保留操作空间。时间：2026-11-21 | 作者：lq。 */
+@media (max-width: 760px) {
+  .finish-hud { top: 125px; left: 22px; width: min(265px,calc(100% - 44px)); }
+  .finish-hud .result-place { font-size: 48px; }
+  .finish-hud .result-time { font-size: 32px; }
+  .finish-hud .record-label { margin-top: 16px; }
+  .finish-hud .retry-button { margin-top: 18px; }
+}
+@media (max-height: 560px) {
+  .finish-hud { top: 105px; width: 270px; }
+  .finish-hud .finish-status { margin-top: 6px; font-size: 11px; }
+  .finish-hud .record-label { margin-top: 8px; }
+  .finish-hud .result-place { margin-top: 4px; font-size: 36px; }
+  .finish-hud .result-time { margin-top: 6px; font-size: 26px; }
+  .finish-hud .result-caption { margin-top: 5px; }
+  .finish-hud .retry-button { margin-top: 12px; height: 40px; }
+  .finish-hud .secondary-button { margin-top: 0; padding: 8px 0; }
+  .stage[data-mode="finish"] .race-bottom { visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) { .finish-content { animation: none; } }
+
+/* 功能：隐藏完赛后不可用的暂停按钮，避免图标布局覆盖原生 hidden。时间：2026-11-21 | 作者：lq。 */
+#pause-button[hidden] { display: none; }
+
+/* 功能：把直播框对齐同画布内的航拍画面，给驾驶视野和触控踏板保留空间。时间：2026-11-21 | 作者：lq。 */
+.drone-feed {
+  position: absolute;
+  z-index: 7;
+  top: clamp(158px, 22vh, 183px);
+  right: 5.2%;
+  width: clamp(165px, 22vw, 282px);
+  border: 1px solid #e5eaf782;
+  box-shadow: 0 8px 25px #1011166b;
+  pointer-events: none;
+}
+.drone-feed[hidden], .drone-screen[hidden] { display: none; }
+.drone-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 0;
+  color: var(--paper);
+  background: #101116ee;
+  font-size: 11px;
+  font-weight: 650;
+  text-align: left;
+  pointer-events: auto;
+}
+.drone-toggle:hover { background: var(--surface); }
+.drone-icon { display: flex; color: var(--titanium); }
+.drone-icon svg { width: 16px; height: 16px; }
+.drone-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  color: #ffc2c7;
+  font: 700 10px var(--mono);
+}
+.drone-live::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.drone-toggle[aria-expanded="false"] .drone-live { visibility: hidden; }
+.drone-screen { aspect-ratio: 16 / 9; border-top: 1px solid #e5eaf782; }
+@media (max-width: 760px) {
+  .drone-feed { top: 200px; right: 16px; width: clamp(133px, 38vw, 210px); }
+  .drone-toggle { min-height: 44px; padding-inline: 7px; gap: 5px; }
+}
+/* 功能：矮屏把航拍移到计圈栏右侧，避免挡住名次、赛道告警和移动踏板。时间：2026-11-21 | 作者：lq。 */
+@media (max-height: 560px) and (orientation: landscape) {
+  .drone-feed { top: 85px; right: calc(5.2% + 45px); width: clamp(138px, 19vw, 182px); }
+  .drone-toggle { min-height: 35px; }
+  .race-progress { align-self: start; width: min(550px, calc(100% - 244px)); }
+  .event-alert { margin-left: 0; width: min(340px, calc(100% - 244px)); }
+  .stage:is([data-mode="countdown"], [data-mode="race"], [data-mode="finish"]) .mini-map {
+    top: 143px;
+    left: auto;
+    right: 1.5%;
+    bottom: auto;
+    width: 34px;
+    height: 57px;
+  }
+  .mini-map .map-title { display: none; }
+}
+@media (max-height: 560px) and (max-width: 760px) and (orientation: landscape) {
+  .drone-feed { top: 66px; right: 61px; }
+  .stage:is([data-mode="countdown"], [data-mode="race"], [data-mode="finish"]) .mini-map { top: 114px; }
+}
+@media (max-height: 560px) and (max-width: 760px) {
+  .race-bottom { padding-block: 9px; }
+  .speed-readout > span:first-child { font-size: 40px; }
+  .position-readout > span:nth-child(2) { font-size: 30px; }
+}
+@media (max-height: 560px) and (orientation: portrait) {
+  .drone-feed { top: 190px; width: 133px; }
+  .drone-toggle { min-height: 38px; }
+  .stage:is([data-mode="countdown"], [data-mode="race"], [data-mode="finish"]) .mini-map {
+    right: auto;
+    left: 20px;
+    bottom: 193px;
+    width: 42px;
+    height: 56px;
+  }
+}

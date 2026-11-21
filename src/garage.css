@@ -1,0 +1,117 @@
+/**
+ * 功能：展示全景车库及转向设置，沿用主界面的石墨与赛车红配色。
+ * 时间：2026-11-20 | 作者：lq
+ */
+.settings-button { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; padding: 0; border: 1px solid #e8eee53e; background: #10111673; }
+.settings-button:hover,.garage-entry:hover { background: #f4f5f819; border-color: #f4f5f88c; }
+.settings-button svg,.garage-icon svg,.custom-color-icon svg { display: block; width: 17px; height: 17px; }
+.garage-entry { min-height: 51px; padding: 0 15px; display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; border: 1px solid #e8eee564; background: #1011168c; font-size: 13px; font-weight: 650; }
+.garage-entry:disabled { opacity: .55; cursor: wait; }
+.garage { position: absolute; inset: 0; z-index: 9; pointer-events: none; }
+.garage[hidden] { display: none; }
+.stage[data-mode="garage"] .mini-map { display: none; }
+.stage[data-mode="garage"] .preflight { visibility: hidden; }
+.stage[data-mode="garage"] .canvas-shade { background: linear-gradient(90deg,#101116e0,#1011169e 27%,transparent 58%); }
+.garage-orbit { position: absolute; inset: 76px 0 47px 36%; pointer-events: auto; cursor: grab; touch-action: none; }
+.garage-orbit:active { cursor: grabbing; }
+.garage-panel { position: absolute; left: 7%; top: 50%; width: min(320px, 30%); translate: 0 -43%; pointer-events: auto; }
+.garage-heading { display: flex; justify-content: space-between; align-items: start; gap: 14px; }
+.garage-kicker { display: block; color: var(--accent); font: 10px var(--mono); }
+.garage-heading h2 { margin: 8px 0 16px; font-size: 42px; font-weight: 800; line-height: 1; }
+.garage fieldset,.control-settings fieldset { margin: 0 0 15px; padding: 0; border: 0; min-inline-size: 0; }
+.garage legend,.control-settings legend,.plate-label { display: block; padding: 0; margin: 0 0 8px; color: var(--titanium); font-size: 12px; font-weight: 650; }
+.livery-options { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 5px; }
+.livery-choice { display: grid; grid-template-columns: 42px minmax(0,1fr); align-items: center; gap: 8px; min-height: 42px; padding: 4px 7px; background: #202127e3; border: 1px solid #edf3ee33; white-space: nowrap; text-align: left; font-size: 11px; }
+.livery-choice[aria-pressed="true"],.control-segments button[aria-pressed="true"],.garage-view button[aria-pressed="true"] { color: white; border-color: var(--accent); background: var(--selected); }
+.livery-sample { height: 24px; background: linear-gradient(135deg,var(--base) 0 37%,var(--line) 37% 50%,#ecede5 50% 54%,var(--ink) 54% 100%); }
+[data-livery="heritage"] .livery-sample { background: linear-gradient(110deg,var(--base) 0 39%,var(--line) 39% 48%,var(--base) 48% 55%,var(--line) 55% 64%,var(--base) 64%); }
+[data-livery="midnight"] .livery-sample { background: linear-gradient(142deg,var(--base) 0 48%,var(--line) 48% 53%,var(--ink) 53% 100%); }
+[data-livery="solid"] .livery-sample { background: var(--base); }
+.garage-colors,.paint-swatches { display: flex; align-items: center; gap: 8px; }
+.paint-swatch,.custom-color { width: 30px; height: 30px; position: relative; display: grid; place-items: center; flex: 0 0 auto; background: var(--surface); padding: 3px; border: 1px solid #eef5eb33; border-radius: 50%; }
+.paint-swatch::before { content: ''; display: block; width: 100%; height: 100%; background: var(--paint); border-radius: 50%; }
+.paint-swatch[aria-pressed="true"] { border-color: var(--paper); box-shadow: 0 0 0 1px var(--accent); }
+.custom-color input { opacity: 0; position: absolute; width: 100%; height: 100%; inset: 0; cursor: pointer; }
+.custom-color:focus-within { outline: 2px solid var(--focus); outline-offset: 3px; }
+.plate-edit { display: flex; height: 43px; align-items: center; border: 1px solid #e4efe84d; background: #101116e0; }
+.plate-edit input { width: 100%; min-width: 0; height: 100%; padding: 0 11px; border: 0; background: none; color: #edf4f5; font: 750 15px system-ui,sans-serif; }
+.plate-edit:focus-within { border-color: var(--accent); }
+.plate-edit input:focus { outline: none; }
+.plate-edit span { padding: 0 10px; white-space: nowrap; font: 10px var(--mono); color: #b5bdbe; }
+.garage-view { position: absolute; bottom: 72px; right: 6%; display: flex; gap: 4px; pointer-events: auto; }
+.garage-view button,.control-segments button { min-height: 40px; border: 1px solid #e7ede544; padding: 0 14px; background: #202127c9; font-size: 12px; }
+.control-settings { width: min(390px,calc(100% - 30px)); max-height: calc(100% - 30px); padding: 24px; color: var(--paper); border: 1px solid #e6e9e04f; background: var(--surface); box-shadow: 0 12px 60px #0006; }
+.control-settings::backdrop { background: #101116b0; }
+.control-settings .garage-heading h2 { font-size: 28px; margin-bottom: 22px; }
+.control-segments { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; }
+.calibrate-button { padding: 7px 0; border: 0; background: transparent; color: var(--accent); font-size: 12px; }
+#control-note { margin: 6px 0 0; line-height: 1.5; color: var(--titanium); font-size: 12px; }
+.arrow-controls { display: flex; gap: 9px; }
+.mobile-controls[data-steering="stick"] :is(.arrow-controls,#tilt-zero),.mobile-controls[data-steering="buttons"] :is(#steer-stick,#tilt-zero),.mobile-controls[data-steering="tilt"] :is(#steer-stick,.arrow-controls) { display: none !important; }
+
+/* 横屏手机可能超过桌面断点，粗指针设备仍显示操控。 */
+@media (pointer: coarse) and (min-width: 761px) {
+  .mobile-controls { position: absolute; z-index: 11; inset: auto 4% max(46px,env(safe-area-inset-bottom)); display: flex; align-items: flex-end; justify-content: space-between; pointer-events: none; }
+  .mobile-controls[inert] { display: none; }
+  .pedal-controls { display: flex; gap: 9px; }
+  .mobile-controls button { width: 52px; height: 52px; display: grid; place-items: center; pointer-events: auto; border: 1px solid #eef5e99c; border-radius: 50%; color: white; background: #16171eca; font: 12px var(--mono); touch-action: none; }
+  .mobile-controls button.gas-button,.mobile-controls button[data-pressed="true"] { background: var(--accent-fill); }
+  .stage:is([data-mode="countdown"],[data-mode="race"]) .race-hud { bottom: 108px; }
+  .stage:is([data-mode="countdown"],[data-mode="race"]) .mini-map { bottom: 190px; }
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  .mobile-controls #steer-stick { height: 70px; width: 87px; position: relative; border-radius: 35px; background: #16171ed6; overflow: visible; }
+  #steer-stick::before { content: ''; display: block; width: 63%; height: 2px; border-radius: 5px; background: #c4cad363; }
+  #steer-knob { position: absolute; inset: calc(50% - 18px) calc(50% - 18px); translate: var(--travel,0px) 0; border-radius: 50%; background: var(--paper); border: 3px solid var(--titanium); box-shadow: 0 2px 10px #101116cc; pointer-events: none; }
+  #steer-stick[data-pressed="true"] #steer-knob { background: var(--paper); border-color: var(--accent); }
+  #tilt-zero svg { width: 21px; height: 21px; }
+}
+
+/* 功能：桌面保留音量文字，窄屏改用独立的静音图标。时间：2026-11-20 | 作者：lq。 */
+.sound-icon { display: none; }
+@media (max-width: 760px) {
+  .header-actions .sound-button { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 44px; padding: 0; border: 0; }
+  .sound-icon { display: inline-grid; place-items: center; }
+  .sound-icon svg { width: 17px; height: 17px; }
+  #sound-label { display: none; }
+  .header-actions .settings-button { width: 33px; height: 33px; flex-basis: 33px; }
+  .garage-entry { min-height: 46px; }
+  .stage[data-mode="garage"] .canvas-shade { background: linear-gradient(0deg,#101116 5%,#17181dbb 42%,transparent 61%); }
+  .preflight.hidden { visibility: hidden; }
+  .garage-panel { inset: auto 5% 54px; width: auto; top: auto; translate: none; max-height: min(52%, 390px); overflow: auto; scrollbar-width: thin; }
+  .garage-heading h2 { font-size: 33px; margin: 4px 0 12px; }
+  .garage fieldset { margin-bottom: 11px; }
+  .garage legend,.plate-label { margin-bottom: 5px; }
+  .garage-orbit { inset: 61px 0 44%; }
+  .garage-view { bottom: auto; top: max(69px, 9%); right: 5%; }
+  .garage-view button { min-height: 34px; }
+  .garage-colors,.paint-swatches { gap: 9px; }
+  .livery-choice { min-height: 37px; }
+}
+
+@media (max-width: 365px) { #time-label { display: none; } }
+
+@media (max-width: 360px) {
+  .launch-row { gap: 8px; }
+  .launch-button { min-width: 179px; padding: 0 12px; }
+  .garage-entry { padding: 0 11px; }
+  .garage-colors,.paint-swatches { gap: 6px; }
+}
+
+@media (max-height: 700px) and (max-width: 760px) {
+  .garage-panel { max-height: 59%; }
+  .garage-heading h2 { font-size: 28px; }
+}
+
+/* 功能：把改装选项放在一行，矮屏车库仍可滚动查看全部设置。时间：2026-11-21 | 作者：lq。 */
+.garage-upgrade-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+.garage-upgrade-row select { width: 100%; min-width: 0; }
+.garage-upgrade-row label { color: var(--titanium); }
+.garage-panel { scrollbar-color: #636571 transparent; }
+@media (max-width: 760px) and (min-height: 701px) {
+  .garage-panel { max-height: min(54%, 430px); }
+}
+@media (min-width: 761px) and (max-height: 620px) {
+  .garage-panel { top: 68px; bottom: 49px; translate: none; overflow-y: auto; scrollbar-width: thin; }
+}

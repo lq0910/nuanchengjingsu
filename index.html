@@ -1,0 +1,146 @@
+<!-- 功能：暖城竞速的页面标题、品牌标识和双桥赛车入口。时间：2026-11-21 | 作者：lq。 -->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <link rel="icon" type="image/svg+xml" href="./mark.svg" />
+  <meta name="theme-color" content="#101116" />
+  <meta name="description" content="暖城竞速：驾驶 Audi RS5，在双桥环线上冲过终点。" />
+  <title>暖城竞速</title>
+  <style>
+    /* 功能：首绘使用石墨底色与赛车红，并隐藏尚未就绪的菜单。时间：2026-11-20 | 作者：lq。 */
+    html, body { margin: 0; background: #101116; }
+    #stage[inert] { visibility: hidden; position: fixed; inset: 0; }
+    #game-loading {
+      position: fixed; inset: 0; z-index: 30; display: grid; place-items: center;
+      color: #f4f5f8; background: #101116; text-align: center;
+      font: 500 16px/1.5 system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    #game-loading[hidden] { display: none; }
+    #game-loading > div { display: grid; justify-items: center; gap: 15px; padding: 24px; }
+    .boot-wordmark { color: #c4cad3; font: 700 11px/1.5 monospace; }
+    .boot-spinner {
+      width: 27px; height: 27px; border: 2px solid #ffffff40; border-top-color: #f66a77;
+      border-radius: 50%; animation: boot-spin .85s linear infinite;
+    }
+    .boot-retry { color: #f66a77; font-size: 14px; text-underline-offset: 4px; }
+    @keyframes boot-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .boot-spinner { animation: none; } }
+  </style>
+</head>
+<body>
+  <!-- 功能：在游戏首帧完成前阻止进入菜单，加载失败时提供刷新入口。时间：2026-11-20 | 作者：lq。 -->
+  <div id="game-loading">
+    <div>
+      <span class="boot-wordmark">暖城竞速</span>
+      <span id="boot-spinner" class="boot-spinner" aria-hidden="true"></span>
+      <span id="boot-status" role="status">游戏加载中</span>
+      <a id="boot-retry" class="boot-retry" href="" hidden>刷新重试</a>
+      <noscript>
+        <style>#boot-spinner, #boot-status { display: none; }</style>
+        此游戏需要启用 JavaScript。
+      </noscript>
+    </div>
+  </div>
+  <main id="stage" class="stage" data-mode="menu" inert>
+    <canvas id="world" aria-label="Three.js 江上双桥赛车赛道"></canvas>
+    <div class="canvas-shade"></div>
+    <div class="grain"></div>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="暖城竞速首页">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <span class="brand-wordmark">暖城竞速</span>
+      </a>
+      <div class="race-status"><span class="live-dot"></span><span id="sector-tag">CIRCUIT 01 / 02</span><i></i><span id="best-chip">BEST&nbsp; <b id="best-time">--:--.---</b></span></div>
+      <div class="header-actions">
+        <button id="time-toggle" class="utility-button" type="button" aria-label="切换到夜间" title="切换到夜间"><span class="sun-symbol">☼</span><span id="time-label">日间赛道</span></button>
+        <!-- 功能：统一静音比赛音乐与音效。时间：2026-11-20 | 作者：lq。 -->
+        <button id="mute-toggle" class="sound-button" type="button" title="静音" aria-label="静音" aria-pressed="false"><span class="sound-icon" aria-hidden="true"></span><span id="sound-label">SOUND ON</span></button>
+        <button id="settings-button" class="settings-button" type="button" title="转向设置" aria-label="转向设置"></button>
+      </div>
+    </header>
+    <section id="preflight" class="preflight">
+      <div class="eyebrow"><span>暖城竞速</span><span class="eyebrow-line"></span><span>01</span></div>
+      <h1>鄂尔多斯<span>速度</span></h1>
+      <!-- 功能：把单圈里程放在简介中，为发车设置腾出空间。时间：2026-11-21 | 作者：lq。 -->
+      <p class="intro">双桥环线 <b id="course-length">— KM</b><span>·</span> AUDI RS5 COUPÉ</p>
+      <div id="track-picker" class="track-picker" aria-label="选择起跑桥梁">
+        <!-- 功能：标注对应的桥号，保留独立的赛道选择序号。时间：2026-11-20 | 作者：lq。 -->
+        <button class="track-option selected" type="button" data-track="0">
+          <span class="track-index">01</span><span class="track-option-name">白翼双拱桥 <small class="track-bridge-number">3号桥</small></span><span class="track-option-en">WHITE ARCH</span><span class="track-arrow" aria-hidden="true">↗</span>
+        </button>
+        <button class="track-option" type="button" data-track="1">
+          <span class="track-index">02</span><span class="track-option-name">双塔斜拉桥 <small class="track-bridge-number">4号桥</small></span><span class="track-option-en">TWIN PYLONS</span><span class="track-arrow" aria-hidden="true">↗</span>
+        </button>
+      </div>
+      <div class="launch-row"><button id="start-button" class="launch-button" type="button" disabled><span class="launch-icon" aria-hidden="true">↗</span><span>开始比赛</span><span class="launch-en">START RACE</span></button><button id="garage-button" class="garage-entry" type="button" disabled><span class="garage-icon"></span>车库</button></div>
+      <!-- 功能：发车前选择圈数、车辆、天气和事件类型。时间：2026-11-21 | 作者：lq。 -->
+      <div class="preflight-bottom">
+        <div class="race-setting"><label for="lap-count">比赛圈数</label><select id="lap-count"></select></div>
+        <div class="race-setting"><label for="car-count">赛车数量</label><select id="car-count"></select></div>
+        <div class="race-setting"><label for="race-weather">天气</label><select id="race-weather"><option value="clear">晴天</option><option value="rain">雨天</option></select></div>
+        <div class="race-setting"><label for="road-events">动态事件</label><select id="road-events"><option value="mixed">混合</option><option value="checkpoint">酒驾临检</option><option value="work">施工并道</option><option value="off">关闭</option></select></div>
+      </div>
+    </section>
+
+    <aside class="bridge-label"><span class="bridge-rule"></span><span id="bridge-name">白翼双拱桥</span><span class="bridge-coordinate" id="bridge-english">WHITE ARCH</span></aside>
+
+    <div id="race-hud" class="race-hud">
+      <!-- 功能：比赛和计时期间标识湿地路况。时间：2026-11-20 | 作者：lq。 -->
+      <div class="race-top"><div class="race-identity"><span class="race-light"></span><span id="race-phase">RACE IN PROGRESS</span><span class="race-divider">/</span><span id="race-name">白翼双拱桥</span><span id="wet-indicator" hidden>湿地</span></div><button class="icon-button" id="pause-button" type="button" title="暂停比赛" aria-label="暂停比赛">Ⅱ</button></div>
+      <!-- 功能：显示当前圈及整场进度，完赛页显示已跑圈数和总用时。时间：2026-11-20 | 作者：lq。 -->
+      <div class="race-progress"><span id="lap-indicator">第 1 / 1 圈</span><div class="progress-track"><span id="meter-fill"></span><i class="finish-mark"></i></div><span id="lap-distance">0 M</span></div>
+      <!-- 功能：临检和施工提示带独立距离读数，语音辅助只播报事件状态变化。时间：2026-11-21 | 作者：lq。 -->
+      <div id="event-alert" class="event-alert" hidden><span class="event-symbol" aria-hidden="true"></span><div class="event-copy" role="status"><strong id="event-title"></strong><span id="event-action"></span></div><span id="event-metric" class="event-metric" aria-hidden="true"></span></div>
+      <div class="race-bottom"><div class="speed-readout"><span id="speed">000</span><span class="speed-unit">KM / H</span><span id="boost-state" class="boost-readout"><span class="boost-label">NITRO</span><span id="boost-value">100%</span><span class="boost-bar"><i id="boost-fill"></i></span></span></div>
+        <div class="race-clock-wrap"><span class="clock-caption">RACE TIME</span><span id="race-clock">00:00.000</span></div>
+        <div class="position-readout"><span class="position-caption">POSITION</span><span id="rank">P1</span><span id="position-total" class="position-total">/ 03</span></div>
+      </div>
+    </div>
+    <div id="countdown" class="countdown hidden" aria-hidden="true">3</div>
+    <!-- 功能：直播开关默认展开无人机的实时航拍画面，可随时收起。时间：2026-11-21 | 作者：lq。 -->
+    <aside id="drone-feed" class="drone-feed" aria-label="无人机直播" hidden>
+      <button id="drone-toggle" class="drone-toggle" type="button" aria-controls="drone-screen" aria-expanded="true">
+        <span class="drone-icon" aria-hidden="true"></span>
+        <span>无人机直播</span>
+        <span class="drone-live" aria-hidden="true">LIVE</span>
+      </button>
+      <div id="drone-screen" class="drone-screen" role="img" aria-label="无人机实时航拍画面"></div>
+    </aside>
+    <!-- 功能：小地图叠加当前赛道事件位置。时间：2026-11-21 | 作者：lq。 -->
+    <div class="mini-map"><span class="map-title">COURSE MAP</span><svg viewBox="52 0 96 150" role="img" aria-label="双桥江上环线小地图"><path class="map-track"/><path class="map-road"/><path class="map-center"/><g id="mini-markers"></g><circle id="mini-event" r="3.5" visibility="hidden"/><circle id="mini-car" r="4.2"/></svg></div>
+    <div id="mobile-controls" class="mobile-controls" data-steering="stick"><div class="steering-controls"><div class="arrow-controls"><button type="button" data-control="left" aria-label="左转">←</button><button type="button" data-control="right" aria-label="右转">→</button></div><button id="steer-stick" type="button" aria-label="虚拟转向摇杆"><span id="steer-knob"></span></button><button id="tilt-zero" type="button" aria-label="校准体感中位" title="校准体感中位"></button></div><div class="pedal-controls"><button type="button" data-control="boost" class="nitro-button" aria-label="氮气加速">N₂O</button><button type="button" data-control="brake" aria-label="刹车">BRAKE</button><button type="button" data-control="accelerate" class="gas-button" aria-label="加速">GO</button></div></div>
+    <!-- 功能：成绩与操作直接叠加在赛道上，完赛自动巡航时保持场景清晰。时间：2026-11-21 | 作者：lq。 -->
+    <section id="result" class="finish-hud hidden" aria-label="比赛成绩"><div class="finish-content"><span class="result-overline">暖城竞速 · FINISH</span><span class="finish-status">比赛完成 · 自动巡航中</span><div id="new-record" class="record-label">NEW PERSONAL BEST</div><span id="result-place" class="result-place">P1 / 03</span><span id="result-time" class="result-time">00:00.000</span><span id="result-caption" class="result-caption">总用时 · 1 圈</span><button id="retry" type="button" class="launch-button retry-button"><span class="launch-icon">↻</span><span>再次出发</span><span class="launch-en">RACE AGAIN</span></button><button id="restart" class="secondary-button" type="button">返回赛道地图</button></div></section>
+    <div id="pause" class="modal hidden"><div class="result-panel pause-panel"><span class="result-overline">暖城竞速 · PAUSED</span><h2>比赛暂停</h2><button id="resume" type="button" class="launch-button retry-button"><span class="launch-icon">▶</span><span>继续比赛</span><span class="launch-en">RESUME</span></button><button id="pause-settings" type="button" class="secondary-button">转向设置</button><button id="pause-restart" type="button" class="secondary-button">返回赛道地图</button></div></div>
+
+    <!-- 功能：车库定制和移动转向设置。时间：2026-11-20 | 作者：lq。 -->
+    <section id="garage" class="garage" aria-labelledby="garage-title" hidden>
+      <div class="garage-orbit" aria-hidden="true"></div>
+      <!-- 功能：新增侧视角，方便检查轮毂效果。时间：2026-11-21 | 作者：lq。 -->
+      <div class="garage-view" role="group" aria-label="查看车辆角度">
+        <button type="button" data-view="front" aria-pressed="true">前视</button><button type="button" data-view="side" aria-pressed="false">侧视</button><button type="button" data-view="rear" aria-pressed="false">后视</button>
+      </div>
+      <div class="garage-panel">
+        <div class="garage-heading"><div><span class="garage-kicker">暖城竞速 / GARAGE</span><h2 id="garage-title">Audi RS5</h2></div><button id="garage-close" class="settings-button" type="button" aria-label="返回赛道" title="返回赛道"></button></div>
+        <fieldset><legend>赛车涂装</legend><div id="livery-options" class="livery-options"></div></fieldset>
+        <fieldset><legend>车身颜色</legend><div class="garage-colors"><div id="paint-swatches" class="paint-swatches"></div><label class="custom-color" title="自定义车身颜色"><span class="custom-color-icon"></span><input id="body-color" type="color" aria-label="自定义车身颜色" /></label></div></fieldset>
+        <!-- 功能：提供同色尾翼与新版轮毂，保留旧存档对应的选项值。时间：2026-11-21 | 作者：lq。 -->
+        <fieldset class="garage-upgrades"><legend>外观改装</legend><div class="garage-upgrade-row"><div class="race-setting"><label for="spoiler-style">尾翼</label><select id="spoiler-style"><option value="stock">原厂尾部</option><option value="lip">同色鸭尾</option><option value="gt">GT 低位尾翼</option></select></div><div class="race-setting"><label for="rim-style">轮毂</label><select id="rim-style"><option value="stock">原厂轮毂</option><option value="sport">亮银 Y 辐</option><option value="split">钛灰弧形十辐</option></select></div></div></fieldset>
+        <label class="plate-label" for="plate-input">前后车牌</label><div class="plate-edit"><input id="plate-input" type="text" maxlength="9" placeholder="RS5·007" autocomplete="off" spellcheck="false" /><span id="plate-length">0 / 9</span></div>
+      </div>
+    </section>
+    <dialog id="control-settings" class="control-settings" aria-labelledby="control-title">
+      <form method="dialog">
+        <div class="garage-heading"><div><span class="garage-kicker">暖城竞速 / CONTROLS</span><h2 id="control-title">转向设置</h2></div><button id="settings-close" class="settings-button" aria-label="关闭设置" title="关闭设置" autofocus></button></div>
+        <fieldset><legend>移动端转向</legend><div class="control-segments"><button type="button" data-steering-mode="stick">摇杆</button><button type="button" data-steering-mode="buttons">按键</button><button type="button" data-steering-mode="tilt">体感</button></div></fieldset>
+        <fieldset><legend>转向灵敏度</legend><div class="control-segments"><button type="button" data-sensitivity="0.75">低</button><button type="button" data-sensitivity="1">标准</button><button type="button" data-sensitivity="1.25">高</button></div></fieldset>
+        <button id="tilt-calibrate" class="calibrate-button" type="button" hidden>校准体感中位</button><p id="control-note" role="status" hidden></p>
+      </form>
+    </dialog>
+    <footer class="footer"><span><i>ORDOS / 01</i><i>AUDI RS5 · 2020</i></span><span>暖城竞速</span></footer>
+  </main>
+  <script type="module" src="./src/bootstrap.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "river-circuit",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build --base=./",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node --test src/race.test.js"
+  },
+  "dependencies": {
+    "lucide-static": "^1.77.0",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "vite": "7.3.7"
+  }
+}
